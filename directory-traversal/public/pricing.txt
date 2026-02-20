@@ -1,0 +1,8 @@
+Pricing Information
+===================
+
+Basic Plan:  $9.99/month
+Pro Plan:    $29.99/month
+Enterprise:  Contact sales
+
+All plans include unlimited document access.

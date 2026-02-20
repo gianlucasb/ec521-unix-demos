@@ -1,0 +1,9 @@
+Welcome to the Document Server!
+
+This is a public document that users are allowed to access.
+Feel free to browse our collection of public files.
+
+Available documents:
+- welcome.txt (this file)
+- readme.txt
+- pricing.txt
