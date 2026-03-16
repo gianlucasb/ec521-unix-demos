@@ -16,24 +16,13 @@
 #define MAX_INPUT 256
 
 int main(int argc, char *argv[]) {
-    char target[MAX_INPUT];
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <hostname or IP>\n", argv[0]);
+        return 1;
+    }
 
     printf("=== Network Diagnostic Tool (execve) ===\n");
-    printf("Enter hostname or IP to ping: ");
-
-    if (fgets(target, sizeof(target), stdin) == NULL) {
-        fprintf(stderr, "Error reading input\n");
-        return 1;
-    }
-
-    target[strcspn(target, "\n")] = '\0';
-
-    if (strlen(target) == 0) {
-        fprintf(stderr, "Error: No target specified\n");
-        return 1;
-    }
-
-    printf("Pinging: %s\n\n", target);
+    printf("Pinging: %s\n\n", argv[1]);
 
     // FIX: Use fork + execve instead of system()
     pid_t pid = fork();
@@ -51,7 +40,7 @@ int main(int argc, char *argv[]) {
         char *args[] = {
             "/bin/ping",
             "-c", "3",
-            target,     // User input is a single argument, not shell-parsed
+            argv[1],    // User input is a single argument, not shell-parsed
             NULL
         };
 

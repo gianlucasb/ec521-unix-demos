@@ -13,28 +13,17 @@
 #define CMD_SIZE 512
 
 int main(int argc, char *argv[]) {
-    char target[MAX_INPUT];
     char command[CMD_SIZE];
 
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <hostname or IP>\n", argv[0]);
+        return 1;
+    }
+
     printf("=== Network Diagnostic Tool ===\n");
-    printf("Enter hostname or IP to ping: ");
-
-    // Read user input
-    if (fgets(target, sizeof(target), stdin) == NULL) {
-        fprintf(stderr, "Error reading input\n");
-        return 1;
-    }
-
-    // Remove trailing newline
-    target[strcspn(target, "\n")] = '\0';
-
-    if (strlen(target) == 0) {
-        fprintf(stderr, "Error: No target specified\n");
-        return 1;
-    }
 
     // VULNERABLE: User input is directly concatenated into command
-    snprintf(command, sizeof(command), "ping -c 3 %s", target);
+    snprintf(command, sizeof(command), "ping -c 3 %s", argv[1]);
 
     printf("Executing: %s\n\n", command);
 

@@ -44,26 +44,23 @@ int is_valid_target(const char *input) {
 }
 
 int main(int argc, char *argv[]) {
-    char target[MAX_INPUT];
     char command[CMD_SIZE];
 
-    printf("=== Network Diagnostic Tool (Input Validation) ===\n");
-    printf("Enter hostname or IP to ping: ");
-
-    if (fgets(target, sizeof(target), stdin) == NULL) {
-        fprintf(stderr, "Error reading input\n");
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <hostname or IP>\n", argv[0]);
         return 1;
     }
 
-    target[strcspn(target, "\n")] = '\0';
+    printf("=== Network Diagnostic Tool (Input Validation) ===\n");
+    printf("Target: %s\n", argv[1]);
 
     // FIX: Validate input before use
-    if (!is_valid_target(target)) {
+    if (!is_valid_target(argv[1])) {
         fprintf(stderr, "Error: Dangerous characters detected in target.\n");
         return 1;
     }
 
-    snprintf(command, sizeof(command), "ping -c 3 %s", target);
+    snprintf(command, sizeof(command), "ping -c 3 %s", argv[1]);
     printf("Executing: %s\n\n", command);
 
     int result = system(command);

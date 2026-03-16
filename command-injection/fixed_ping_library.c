@@ -125,32 +125,23 @@ int ping_host(int sockfd, struct sockaddr_in *addr, int seq) {
 }
 
 int main(int argc, char *argv[]) {
-    char target[MAX_INPUT];
     struct sockaddr_in addr;
 
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <hostname or IP>\n", argv[0]);
+        return 1;
+    }
+
     printf("=== Network Diagnostic Tool (Library/Raw Socket) ===\n");
-    printf("Enter hostname or IP to ping: ");
-
-    if (fgets(target, sizeof(target), stdin) == NULL) {
-        fprintf(stderr, "Error reading input\n");
-        return 1;
-    }
-
-    target[strcspn(target, "\n")] = '\0';
-
-    if (strlen(target) == 0) {
-        fprintf(stderr, "Error: No target specified\n");
-        return 1;
-    }
 
     // FIX: No shell involved at all!
     // User input is passed directly to networking functions.
     // Shell metacharacters like ; | & have no special meaning here.
 
-    printf("Pinging %s...\n\n", target);
+    printf("Pinging %s...\n\n", argv[1]);
 
     // Resolve hostname
-    if (resolve_host(target, &addr) < 0) {
+    if (resolve_host(argv[1], &addr) < 0) {
         return 1;
     }
 
@@ -180,7 +171,7 @@ int main(int argc, char *argv[]) {
 
     close(sockfd);
 
-    printf("\n--- %s ping statistics ---\n", target);
+    printf("\n--- %s ping statistics ---\n", argv[1]);
     printf("%d packets transmitted, %d received\n", PING_COUNT, success);
 
     return (success > 0) ? 0 : 1;
