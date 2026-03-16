@@ -91,6 +91,9 @@ int main(int argc, char *argv[]) {
     if (!is_path_within_base(BASE_DIR, filepath)) {
         fprintf(stderr, "[-] ACCESS DENIED: Path escapes base directory!\n");
         fprintf(stderr, "[-] This could be a directory traversal attack.\n");
+        if (realpath(filepath, resolved_path) != NULL) {
+            fprintf(stderr, "[-] Resolved path: %s\n", resolved_path);
+        }
         return 1;
     }
 
