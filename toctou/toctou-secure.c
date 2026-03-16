@@ -15,7 +15,6 @@
  *   because the fd refers to a specific inode, not a pathname.
  *
  * ADDITIONAL PROTECTIONS:
- *   - O_NOFOLLOW: Refuse to open symlinks (optional, stricter policy)
  *   - Check file ownership and mode bits against real UID/GID
  */
 
@@ -67,17 +66,13 @@ int main(int argc, char** argv) {
     /*
      * SECURE: Open first, check later.
      *
-     * O_NOFOLLOW prevents opening symlinks, providing additional
-     * protection against symlink attacks. Remove this flag if you
-     * need to legitimately follow symlinks.
+     * Once we have a file descriptor, it's bound to the inode —
+     * even if an attacker swaps a symlink after this point,
+     * we're still operating on the original file.
      */
-    int fd = open(argv[1], O_RDONLY | O_NOFOLLOW);
+    int fd = open(argv[1], O_RDONLY);
     if (fd < 0) {
-        if (errno == ELOOP) {
-            fprintf(stderr, "Error: %s is a symbolic link (not allowed)\n", argv[1]);
-        } else {
-            perror("open");
-        }
+        perror("open");
         return 1;
     }
 
