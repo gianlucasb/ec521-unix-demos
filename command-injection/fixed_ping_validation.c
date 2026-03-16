@@ -32,7 +32,7 @@ int is_valid_target(const char *input) {
         char c = input[i];
 
         // Allowlist: alphanumeric, dot, hyphen, colon (IPv6)
-        if (!isalnum((unsigned char)c) && c != '.' && c != '-' && c != ':') {
+        if (!isalnum((unsigned char)c) && c != '.' && c != '-' && c != ':' && c != ' ') {
             return 0;
         }
     }
