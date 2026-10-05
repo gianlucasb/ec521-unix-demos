@@ -8,7 +8,8 @@ This repository contains hands-on demonstrations of common Unix security vulnera
 ec521-unix-demos/
 ├── directory-traversal/     # Path traversal vulnerability
 ├── command-injection/       # Shell command injection vulnerability
-└── toctou/                  # Time-of-Check to Time-of-Use race condition
+├── toctou/                  # Time-of-Check to Time-of-Use race condition
+└── kernel-capabilities/     # Binding port 80: root vs. Linux capabilities
 ```
 
 ---
@@ -244,13 +245,83 @@ read(fd, buffer, sizeof(buffer));
 
 ---
 
+## 4. Linux Capabilities (Binding Port 80)
+
+**Location:** `kernel-capabilities/` (Linux only)
+
+The kernel only lets a process bind ports below 1024 if it holds `CAP_NET_BIND_SERVICE`. The traditional way to get it is to run as root, which grants every privilege. Capabilities split root's power into individual pieces so a program can be given just the one it needs.
+
+### Source Files
+
+| File | Description |
+|------|-------------|
+| `bind80_root.c` | Binds port 80 by running as root - keeps all capabilities |
+| `bind80_caps.c` | Binds port 80 as a normal user via a file capability, then drops it |
+
+### Approach 1: Run as Root (`bind80_root.c`)
+
+```bash
+./bind80_root        # Fails: bind(80) failed: Permission denied
+sudo ./bind80_root   # Works, but the process holds ALL capabilities
+```
+
+The program prints its `uid`/`euid` and the `Cap*` lines from `/proc/self/status`. After the bind it is still root with every capability while it handles untrusted network input, so a single bug compromises the whole machine.
+
+### Approach 2: Capabilities (`bind80_caps.c`)
+
+Grant the binary exactly one capability:
+
+```bash
+sudo setcap cap_net_bind_service=+ep ./bind80_caps
+./bind80_caps        # Runs as a normal user, binds port 80
+```
+
+After `bind()` the program clears all its capability sets with the `capset` syscall:
+
+```c
+struct __user_cap_header_struct hdr = { _LINUX_CAPABILITY_VERSION_3, 0 };
+struct __user_cap_data_struct data[2] = {0};
+syscall(SYS_capset, &hdr, data);
+```
+
+`CapEff` goes from `0000000000000400` (bit 10, `CAP_NET_BIND_SERVICE`) to all zeros, so the code that serves requests has no special privileges at all.
+
+### Comparison
+
+| | Root | Capabilities |
+|---|------|--------------|
+| `uid` | 0 | Normal user |
+| Privileges held | All | Only `CAP_NET_BIND_SERVICE` |
+| Privileges while serving | All | None (dropped after bind) |
+| Impact of a bug | Full system compromise | Unprivileged process |
+
+### Caveat: Docker
+
+Docker defaults `net.ipv4.ip_unprivileged_port_start` to 0, so any user can bind port 80 and the "fails" demos will succeed. Use `--sysctl net.ipv4.ip_unprivileged_port_start=1024`. `setcap` also does not work on some filesystems (e.g., bind-mounted host directories), so build inside the container or VM.
+
+### Building and Testing
+
+```bash
+cd kernel-capabilities
+make all                # Build both versions
+make demo-root-fails    # Normal user, no capability: EACCES
+make demo-root          # sudo: works, holds all capabilities
+make demo-caps-fails    # Before setcap: EACCES
+make demo-caps          # setcap, then bind as a normal user and drop the cap
+make show-caps          # From a second terminal: inspect running servers
+make unsetcap           # Remove the file capability
+make clean              # Remove binaries
+```
+
+---
+
 ## General Security Principles
 
 1. **Never trust user input** - Always validate and sanitize
 2. **Use allowlists, not blocklists** - Define what IS allowed, not what isn't
 3. **Validate at the right level** - String checks are insufficient; validate actual resources
 4. **Minimize the attack window** - Eliminate gaps between checking and using
-5. **Principle of least privilege** - Don't run with more permissions than needed
+5. **Principle of least privilege** - Don't run with more permissions than needed (e.g., grant one capability instead of running as root, and drop it when done)
 6. **Prefer library functions over shell commands** - Avoid shell interpretation entirely when possible
 
 ---
@@ -262,11 +333,13 @@ read(fd, buffer, sizeof(buffer));
 make -C directory-traversal all
 make -C command-injection all
 make -C toctou all
+make -C kernel-capabilities all   # Linux only
 
 # Clean everything
 make -C directory-traversal clean
 make -C command-injection clean
 make -C toctou clean
+make -C kernel-capabilities clean
 ```
 
 ---
@@ -279,3 +352,5 @@ make -C toctou clean
 - `man 3 realpath`
 - `man 2 execve`
 - `man 2 open` (see `O_NOFOLLOW`)
+- `man 7 capabilities`
+- `man 8 setcap`
