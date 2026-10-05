@@ -9,7 +9,8 @@ ec521-unix-demos/
 ├── directory-traversal/     # Path traversal vulnerability
 ├── command-injection/       # Shell command injection vulnerability
 ├── toctou/                  # Time-of-Check to Time-of-Use race condition
-└── kernel-capabilities/     # Binding port 80: root vs. Linux capabilities
+├── kernel-capabilities/     # Binding port 80: root vs. Linux capabilities
+└── ld-preload/              # Function interposition with LD_PRELOAD
 ```
 
 ---
@@ -315,6 +316,47 @@ make clean              # Remove binaries
 
 ---
 
+## 5. LD_PRELOAD (Function Interposition)
+
+**Location:** `ld-preload/` (Linux only)
+
+The dynamic linker resolves libc functions at run time, searching libraries listed in `LD_PRELOAD` *before* libc. Whoever controls a process's environment can therefore replace its library calls without modifying the binary.
+
+### Source Files
+
+| File | Description |
+|------|-------------|
+| `victim.c` | Calls `time()` to decide whether a trial has expired |
+| `hook.c` | Shared library that replaces `time()` with a fixed fake date |
+
+### The Demo
+
+```c
+// hook.c - replaces libc's time()
+time_t time(time_t *tloc) {
+    time_t fake = 1717200000;   // 2024-06-01
+    if (tloc) *tloc = fake;
+    return fake;
+}
+```
+
+```bash
+cd ld-preload
+gcc -o victim victim.c
+gcc -shared -fPIC -o hook.so hook.c
+
+./victim                        # Trial expired
+LD_PRELOAD=./hook.so ./victim   # Trial active (same binary, fake clock)
+```
+
+### Why It Matters
+
+- The program's logic is unchanged; only the answer from `time()` differs.
+- Any check that trusts a libc call (time, uid, randomness) can be subverted by whoever sets the environment.
+- Interposition is **not** a security boundary. Static linking or raw syscalls bypass it, and setuid binaries ignore `LD_PRELOAD` (the dynamic linker enters secure-execution mode).
+
+---
+
 ## General Security Principles
 
 1. **Never trust user input** - Always validate and sanitize
@@ -334,6 +376,7 @@ make -C directory-traversal all
 make -C command-injection all
 make -C toctou all
 make -C kernel-capabilities all   # Linux only
+# ld-preload: compile by hand (see section 5)
 
 # Clean everything
 make -C directory-traversal clean
@@ -354,3 +397,4 @@ make -C kernel-capabilities clean
 - `man 2 open` (see `O_NOFOLLOW`)
 - `man 7 capabilities`
 - `man 8 setcap`
+- `man 8 ld.so` (see `LD_PRELOAD`)
